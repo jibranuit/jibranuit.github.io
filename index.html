@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .header {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 2em;
+        }
+
+        .subheading {
+            font-size: 1.5em;
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        .buttons {
+            text-align: center;
+            margin: 20px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1em;
+            border: none;
+            cursor: pointer;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .image-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        #login-form-container,
+        #content-container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Uit Data Collection</h1>
+        <h2 class="subheading">Login to view collected data</h2>
+    </div>
+
+    <div id="login-form-container">
+        <form id="login-form">
+            <input type="email" id="login-email" placeholder="Email" required><br>
+            <input type="password" id="login-password" placeholder="Password" required><br>
+            <button type="submit">Login</button>
+        </form>
+        <p id="login-error-message"></p>
+    </div>
+
+    <!-- New content container -->
+    <div id="content-container" class="hidden">
+        <!-- Content will be dynamically updated here -->
+        <h2 id="content-heading"></h2>
+        <div id="imageContainer"></div>
+        <button id="saturdayButton" class="hidden">Saturday</button>
+        <button id="sundayButton" class="hidden">Sunday</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDEjKHWj3CEnVoMdjgTBQGR629jtpsDsPA",
+            authDomain: "web-app-400311.firebaseapp.com",
+            projectId: "web-app-400311",
+            storageBucket: "web-app-400311.appspot.com",
+            messagingSenderId: "674379075187",
+            appId: "1:674379075187:web:6091f9c6d4fd66b2c5e406",
+            measurementId: "G-QYSQ6CQC9K"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const loginForm = document.getElementById('login-form');
+        const loginEmailInput = document.getElementById('login-email');
+        const loginPasswordInput = document.getElementById('login-password');
+        const loginErrorMessage = document.getElementById('login-error-message');
+        const contentContainer = document.getElementById('content-container');
+        const contentHeading = document.getElementById('content-heading');
+        const imageContainer = document.getElementById('imageContainer');
+        const saturdayButton = document.getElementById('saturdayButton');
+        const sundayButton = document.getElementById('sundayButton');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = loginEmailInput.value;
+            const password = loginPasswordInput.value;
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);const user = userCredential.user;
+
+                // Handle successful login
+                console.log('Login successful');
+
+                // Show the content container
+                contentContainer.classList.remove('hidden');
+
+                // Hide the login form
+                loginForm.classList.add('hidden');
+
+                // Show the buttons for Saturday and Sunday
+                saturdayButton.classList.remove('hidden');
+                sundayButton.classList.remove('hidden');
+
+                // Scroll the content container into view on mobile
+                if (window.innerWidth <= 600) {
+                    contentContainer.scrollIntoView({ behavior: 'smooth' });
+                }
+            } catch (error) {
+                // Handle login error
+                const errorMessageText = error.message;
+                loginErrorMessage.textContent = errorMessageText;
+            }
+        });
+
+        // Add event listeners to buttons
+        saturdayButton.addEventListener('click', async () => {
+            await fetchDataAndDisplay('Saturday');
+        });
+
+        sundayButton.addEventListener('click', async () => {
+            await fetchDataAndDisplay('Sunday');
+        });
+
+        async function fetchDataAndDisplay(day) {
+            // Fetch data from Firestore based on the selected day
+            const db = getFirestore(app);
+            const collectionRef = collection(db, 'uit_data_collection');
+            const q = query(collectionRef, where('day', '==', day));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const data = querySnapshot.docs[0].data();
+                const images = data.images;
+
+                // Update content heading
+                contentHeading.textContent = `Data collected on ${data.day}`;
+
+                // Clear previous images
+                imageContainer.innerHTML = '';
+
+                // Create and append image elements to the container
+                images.forEach((imageUrl) => {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = imageUrl;
+                    imageContainer.appendChild(imgElement);
+                });
+
+                // Scroll the content container into view on mobile
+                if (window.innerWidth <= 600) {
+                    contentContainer.scrollIntoView({ behavior: 'smooth' });
+                }
+            } else {
+                // Handle case where no data is found for the selected day
+                console.log(`No data found for ${day}`);
+            }
+        }
+    </script>
+</body>
+</html>
